@@ -56,9 +56,28 @@ PR 머지 조건:
 2. 동작 변경 시 관련 **Golden/Invariant** 갱신 및 승인
 3. 배운 것 환류 — `.harness/wiki/` (Fact/Intent) 또는 `.harness/skills/` (Procedure) 갱신
 
-## 6. 더 읽기
+## 6. 직무별 에이전트 · 스킬 (하나의 하네스, 모든 업무)
+
+기획·디자인·개발·QA·보안 전 직무를 이 하네스 하나로 관리한다.
+
+| 직무 | 에이전트 (`.claude/agents/`) | 스킬 (`.claude/skills/`) | 지식 (`.harness/wiki/`) |
+| --- | --- | --- | --- |
+| 총괄 | `up-supervisor` (분배·증거 검수) | — | 전체 |
+| 기획 | `up-planner` | `plan-ticket` | `planning.md` |
+| 디자인 | `up-designer` | (Figma MCP 스킬 활용) | `design.md` |
+| 개발 | `up-developer` | — (runners/check.sh 게이트) | `system-map.md`, `runtime.md` |
+| QA | `up-qa` | `qa-verify` | `verification.md` |
+| 보안 | `up-security` | `security-review` | `security.md` |
+| 환류 | 전원 | `harness-feedback` | (모든 wiki 갱신) |
+
+여러 직무에 걸친 작업은 `up-supervisor` 로 시작한다. 모든 작업의 마지막 단계는
+`harness-feedback` (환류 없이 Done 없음).
+
+## 7. 더 읽기
 
 - `.harness/wiki/system-map.md` — 아키텍처·데이터 흐름·진입점
 - `.harness/wiki/domain/skeleton-stream.md` — 골격 스트림 계약·불변식·DTW
 - `.harness/wiki/runtime.md` — 빌드·실행·인프라·환경변수
 - `.harness/wiki/verification.md` — 검증 루프·완료 판정
+- `.harness/wiki/planning.md` / `design.md` / `security.md` — 직무별 기준
+- Notion 허브: [프로젝트](https://app.notion.com/p/3acb61e8ae42808781dccf9a907808da) 하위 직무별 페이지
