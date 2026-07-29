@@ -75,16 +75,17 @@ PR 머지 조건:
 
 | 직무 | 에이전트 (`.claude/agents/`) | 스킬 (`.claude/skills/`) | 지식 (`.harness/wiki/`) |
 | --- | --- | --- | --- |
-| 총괄 | `up-supervisor` (분배·증거 검수) | — | 전체 |
-| 기획 | `up-planner` | `plan-ticket`, `write-plan` | `planning.md`, `methodology.md` |
-| 디자인 | `up-designer` | (Figma MCP + 시안 샷건) | `design.md` |
-| 개발 | `up-developer` | `write-plan`, `debug-systematic` | `system-map.md`, `runtime.md` |
-| QA | `up-qa` | `qa-verify` (P1/P2/P3) | `verification.md` |
+| 총괄 | `up-supervisor` (분배·증거 검수) | `ceo-review` | 전체 |
+| 기획 | `up-planner` | `plan-ticket`, `write-plan`, `ceo-review` | `planning.md`, `methodology.md` |
+| 디자인 | `up-designer` | `design-shotgun`, `design-review` (+Figma MCP) | `design.md` |
+| 개발 | `up-developer` | `write-plan`, `eng-review`, `debug-systematic`, `review` | `system-map.md`, `runtime.md` |
+| QA | `up-qa` | `qa-verify`, `devex-review` | `verification.md` |
 | 보안 | `up-security` | `security-review` (OWASP·STRIDE) | `security.md` |
+| 출하 | 전원 | `ship`, `docs-sync` | `conventions-git.md` |
 | 환류 | 전원 | `harness-feedback`, `retro` | solutions/ · plans/ · 모든 wiki |
 
 여러 직무에 걸친 작업은 `up-supervisor` 로 시작한다. 모든 작업의 마지막 단계는
-`harness-feedback` (환류 없이 Done 없음).
+`harness-feedback` (환류 없이 Done 없음). **전체 명령 팔레트: `.harness/wiki/skills-map.md`**.
 
 ## 7. 더 읽기
 

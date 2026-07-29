@@ -48,8 +48,11 @@ up-supervisor (분배·증거 검수)
 
 .claude/
 ├─ agents/                    # 직무 에이전트 6종 (supervisor/planner/designer/developer/qa/security)
-└─ skills/                    # 실행 절차 7종 (plan-ticket/write-plan/qa-verify/security-review/
-                              #   debug-systematic/harness-feedback/retro)
+└─ skills/                    # 실행 절차 15종 — 전체 팔레트·출처는 wiki/skills-map.md
+                              #   Plan: plan-ticket·ceo-review·write-plan·eng-review
+                              #   Design: design-shotgun·design-review / Work: debug-systematic
+                              #   Review: review·qa-verify·security-review·devex-review
+                              #   Ship: ship·docs-sync / Compound: harness-feedback·retro
 ```
 
 ## 검증 루프 (Harness의 심장)
