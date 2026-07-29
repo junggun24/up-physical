@@ -7,6 +7,11 @@ cd "$ROOT"
 
 step() { printf '\n\033[1m── %s ──\033[0m\n' "$1"; }
 
+# 커밋 규칙 훅 미설정 경고 (게이트 실패는 아님)
+if [ "$(git config core.hooksPath || true)" != ".githooks" ]; then
+  printf '\033[33m⚠ 커밋 규칙 훅 미설정 — .harness/runners/setup.sh 를 1회 실행하세요\033[0m\n'
+fi
+
 step "1/4 go build"
 go build ./...
 

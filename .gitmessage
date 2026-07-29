@@ -1,0 +1,9 @@
+# <type>(<scope>)?: <제목 — 명령형, 72자 이내, 마침표 금지>
+# ── 빈 줄 ──
+# <본문 — "무엇"보다 "왜". 한국어 권장>
+# ── 빈 줄 ──
+# <푸터 — Refs: UP-xx / BREAKING CHANGE: ... / Co-Authored-By: ...>
+#
+# type: feat fix docs refactor test perf ci chore harness
+# scope 예: api worker contract store queue analysis auth wiki fixtures
+# 전체 규칙: .harness/wiki/conventions-git.md

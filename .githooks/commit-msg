@@ -1,0 +1,38 @@
+#!/bin/sh
+# commit-msg 훅 — 커밋 규칙 강제 (.harness/wiki/conventions-git.md).
+# 규칙을 바꾸면 위 문서와 이 정규식을 같은 커밋에서 함께 바꾼다.
+
+msg_file="$1"
+first_line=$(sed '/^#/d' "$msg_file" | head -n1)
+
+# git 자동 형식은 통과
+case "$first_line" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+fail() {
+  echo "" >&2
+  echo "✖ 커밋 메시지 규칙 위반 — $1" >&2
+  echo "" >&2
+  echo "  형식: <type>(<scope>)?: <제목 명령형, 72자 이내, 마침표 금지>" >&2
+  echo "  type: feat fix docs refactor test perf ci chore harness" >&2
+  echo "  예  : feat(api): 세션 목록 페이지네이션 추가" >&2
+  echo "" >&2
+  echo "  전체 규칙: .harness/wiki/conventions-git.md" >&2
+  exit 1
+}
+
+# 1) 제목 형식: type(scope)?!?: 제목(1~72자)
+pattern='^(feat|fix|docs|refactor|test|perf|ci|chore|harness)(\([a-zA-Z0-9._/-]+\))?!?: [^ ].{0,71}$'
+printf '%s' "$first_line" | grep -qE "$pattern" || fail "제목이 형식과 다릅니다: \"$first_line\""
+
+# 2) 제목 끝 마침표 금지
+case "$first_line" in
+  *.) fail "제목 끝에 마침표를 쓰지 않습니다" ;;
+esac
+
+# 3) 본문이 있으면 제목과 본문 사이 빈 줄 필수
+second_line=$(sed '/^#/d' "$msg_file" | sed -n 2p)
+[ -n "$second_line" ] && fail "제목 다음 줄은 빈 줄이어야 합니다"
+
+exit 0

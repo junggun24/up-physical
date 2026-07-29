@@ -41,6 +41,15 @@ internal/auth/        JWT 발급·검증, 비밀번호 해시
   점수 계산 로직을 복제하지 않는다.
 - **컴파일 성공 ≠ 기능 완료.** 완료는 §5 의 검증 게이트를 통과해야 한다.
 
+## 3-1. 커밋 규칙 (강제됨)
+
+```
+<type>(<scope>)?: <제목 명령형, 72자 이내>     # type: feat fix docs refactor test perf ci chore harness
+```
+
+본문은 Why 중심, 1커밋 = 1의도. 전체 규칙: `.harness/wiki/conventions-git.md`.
+`.githooks/commit-msg` 가 형식을 강제한다 (클론 후 `.harness/runners/setup.sh` 1회).
+
 ## 4. 명령 (러너)
 
 | 명령 | 하는 일 |
