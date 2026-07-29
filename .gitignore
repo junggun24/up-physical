@@ -1,0 +1,20 @@
+# Build / binaries
+/bin/
+*.exe
+*.test
+*.out
+
+# Env / secrets
+.env
+deploy/.env
+*.local.env
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+
+# Harness working outputs (generated during verification runs)
+.harness/tmp/
+.harness/e2e/results/
