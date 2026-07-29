@@ -16,9 +16,9 @@ N_FRAMES = 10
 FPS = 30.0
 
 
-def keypoint(kp_id: int, t: float) -> dict:
+def keypoint(kp_id: int, t: float, phase_shift: float = 0.0) -> dict:
     # 결정적·매끄러운 가짜 궤적 (스윙 흉내일 뿐 물리적 의미 없음)
-    phase = t * 2.0 * math.pi + kp_id * 0.1
+    phase = t * 2.0 * math.pi + kp_id * 0.1 + phase_shift
     return {
         "id": kp_id,
         "x": round(0.5 + 0.2 * math.sin(phase), 6),
@@ -28,14 +28,16 @@ def keypoint(kp_id: int, t: float) -> dict:
     }
 
 
-def build_valid() -> dict:
+def build_valid(session_id: str = "11111111-1111-4111-8111-111111111111",
+                subject_id: str = "player-1", label: str = "user",
+                phase_shift: float = 0.0) -> dict:
     frames = []
     for i in range(N_FRAMES):
         t = round(i / FPS, 6)
-        frames.append({"t": t, "keypoints": [keypoint(k, t) for k in range(N_KP)]})
+        frames.append({"t": t, "keypoints": [keypoint(k, t, phase_shift) for k in range(N_KP)]})
     return {
         "schema_version": "1.0",
-        "session_id": "11111111-1111-4111-8111-111111111111",
+        "session_id": session_id,
         "created_at": "2026-01-01T00:00:00Z",
         "capture": {
             "source": "on_device",
@@ -49,7 +51,7 @@ def build_valid() -> dict:
             "frame_count": N_FRAMES,
         },
         "subjects": [
-            {"subject_id": "player-1", "label": "user", "frames": frames}
+            {"subject_id": subject_id, "label": label, "frames": frames}
         ],
     }
 
@@ -65,10 +67,17 @@ def main() -> None:
     inv4 = copy.deepcopy(valid)
     inv4["subjects"][0]["frames"][0]["keypoints"].pop()
 
+    # 레퍼런스(코치 스윙): 위상만 살짝 다른 유효 스트림 — 시드(cmd/seed)용
+    reference = build_valid(
+        session_id="22222222-2222-4222-8222-222222222222",
+        subject_id="coach-1", label="coach", phase_shift=0.35,
+    )
+
     out = {
         "valid-forehand-2d.json": valid,
         "invalid-inv2-time.json": inv2,
         "invalid-inv4-topology.json": inv4,
+        "reference-forehand-2d.json": reference,
     }
     for name, data in out.items():
         path = HERE / name

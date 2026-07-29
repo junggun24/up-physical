@@ -22,9 +22,18 @@ fail() {
   exit 1
 }
 
-# 1) 제목 형식: type(scope)?!?: 제목(1~72자)
-pattern='^(feat|fix|docs|refactor|test|perf|ci|chore|harness)(\([a-zA-Z0-9._/-]+\))?!?: [^ ].{0,71}$'
+# UTF-8 로케일 확보 — C 로케일에선 한글이 바이트(×3)로 세어져 72자 제한을 오판한다
+for loc in en_US.UTF-8 C.UTF-8 ko_KR.UTF-8; do
+  if locale -a 2>/dev/null | grep -qx "$loc"; then LC_ALL="$loc"; export LC_ALL; break; fi
+done
+
+# 1) 제목 형식: type(scope)?!?: 제목
+pattern='^(feat|fix|docs|refactor|test|perf|ci|chore|harness)(\([a-zA-Z0-9._/-]+\))?!?: [^ ]'
 printf '%s' "$first_line" | grep -qE "$pattern" || fail "제목이 형식과 다릅니다: \"$first_line\""
+
+# 1-1) 제목 길이 ≤ 72자 (문자 수 기준 — wc -m 은 위 로케일에서 멀티바이트를 1자로 센다)
+len=$(printf '%s' "$first_line" | wc -m | tr -d ' ')
+[ "$len" -le 72 ] || fail "제목이 72자를 넘습니다 (현재 ${len}자)"
 
 # 2) 제목 끝 마침표 금지
 case "$first_line" in

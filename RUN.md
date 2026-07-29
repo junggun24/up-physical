@@ -1,67 +1,57 @@
 # 백엔드 실행 가이드 (Go)
 
 인제스션 API + 분석 워커. 잡 큐는 별도 브로커 없이 **Postgres(SKIP LOCKED)** 로 처리.
-분석은 검증된 **Python 엔진**(`engine/run_analysis.py`)을 워커가 subprocess로 호출(운영 핫패스 네이티브화 전까지).
+분석 엔진은 상주 Python 프로세스(라인 JSON 프로토콜, `internal/analysis`).
+
+> 현재 리포에는 **개발 스텁 엔진**(`engine/dev_engine_server.py`)만 있다 — 파이프라인 검증 전용.
+> 검증된 실엔진(포핸드 오프라인 검증본) 확보 시 `ENGINE_SCRIPT` 만 교체한다. **스텁 결과로 Golden 승인 금지.**
 
 ## 구성
 
 ```
-backend/
-├── cmd/api/main.go        인제스션 & 결과 조회 API (net/http, Go 1.22 라우팅)
-├── cmd/worker/main.go     큐 소비 → 엔진 호출 → 결과 저장 (graceful shutdown)
-└── internal/
-    ├── contract/          계약 타입 + 불변식 검증(INV-1..8) — validate.py 이식
-    ├── store/             PostgreSQL 데이터 계층 (pgx)
-    ├── objstore/          S3 호환 스토리지 (minio-go)
-    ├── queue/             Postgres 잡 큐 (FOR UPDATE SKIP LOCKED)
-    └── analysis/          Python 엔진 subprocess 호출 경계
+cmd/api/main.go        인제스션 & 결과 조회 API (net/http, Go 1.22 라우팅)
+cmd/worker/main.go     큐 소비 → 엔진 호출 → 결과 저장 (graceful shutdown)
+cmd/seed/main.go       레퍼런스 시드 등록
+cmd/validate/main.go   골격 스트림 계약 검증 CLI (하네스 러너용)
+internal/              contract(INV-1..8) · store(pgx) · objstore(minio) · queue · analysis · auth
+deploy/                docker-compose (Postgres:5433 + MinIO:9000) + .env.example
+db/migrations/         스키마 (0001_init.up.sql — store 코드에서 역산, 원본 확보 시 diff 필요)
+engine/                dev_engine_server.py (개발 스텁)
 ```
 
-## 사전 준비
-
-1. 인프라: `cd deploy && docker compose up -d` (Postgres + MinIO).
-2. 마이그레이션 적용: `db/migrations/0001_init.up.sql` 를 Postgres에 실행
-   (예: `psql "$DATABASE_URL" -f db/migrations/0001_init.up.sql`).
-3. 환경변수: `cp deploy/.env.example deploy/.env` 후 값 확인
-   (`DATABASE_URL`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `ENGINE_SCRIPT`, `PORT`).
-4. 엔진 런타임: 워커 호스트에 `python3` + `numpy` + `engine/` 가 있어야 함.
-
-## 빌드 & 실행
+## 처음 한 번
 
 ```bash
-cd backend
-go mod tidy          # transitive 의존성 해석 (이 단계는 네트워크 필요)
-go build ./...       # 컴파일 검증
+.harness/runners/setup.sh                 # 커밋 훅 + 템플릿
+cd deploy && docker compose up -d --wait  # Postgres(5433) + MinIO(9000/9001)
+cp .env.example .env && cd ..
+psql "postgres://upx:upx@localhost:5433/upphysical" -f db/migrations/0001_init.up.sql
+set -a; source deploy/.env; set +a
+go run ./cmd/seed -sport tennis -action forehand -version 1 \
+  -file .harness/fixtures/reference-forehand-2d.json
+```
 
-# API
-set -a; source ../deploy/.env; set +a
+## 실행
+
+```bash
+set -a; source deploy/.env; set +a
 go run ./cmd/api      # :8080
 
-# 워커 (다른 터미널)
-set -a; source ../deploy/.env; set +a
-ENGINE_SCRIPT=../engine/run_analysis.py go run ./cmd/worker
+# 다른 터미널
+set -a; source deploy/.env; set +a
+go run ./cmd/worker   # ENGINE_SCRIPT=engine/dev_engine_server.py (.env 기본값)
 ```
 
-## 스모크 테스트 (앱 없이)
+## 검증
 
 ```bash
-# 1) 레퍼런스 시드는 별도 도구로 등록 필요(references_streams + MinIO에 reference.json).
-#    참조구현 services/references.register_reference 흐름을 운영 시드 스크립트로 옮길 것(UP 백로그).
-
-# 2) 업로드
-curl -sX POST localhost:8080/v1/sessions \
-  -H "Idempotency-Key: $(uuidgen)" -H "X-User-Id: dev-1" \
-  -H "Content-Type: application/json" \
-  -d '{"stream": <골격스트림 JSON>, "analysis": {"sport":"tennis","action":"forehand"}}'
-# → {"session_id","job_id","status":"queued"}
-
-# 3) 폴링 → 결과
-curl -s localhost:8080/v1/jobs/<job_id>
-curl -s localhost:8080/v1/jobs/<job_id>/results
+.harness/runners/check.sh    # 머지 게이트: build·vet·test·fixture
+.harness/runners/smoke.sh    # E2E: 업로드 → 잡 폴링 → 결과 (API·워커 기동 상태에서)
 ```
 
 ## 참고 / 한계
 
-- 이 코드는 참조구현(`services/*.py`, 5/5 테스트 통과)을 Go로 이식한 것이다. **컴파일·통합 테스트는 Go 툴체인이 있는 PC에서** 수행한다(작성 환경은 네트워크가 막혀 검증 불가).
-- 인증(JWT 검증)은 게이트웨이/관리형 IdP 담당(UP-12). API는 현재 `X-User-Id` 또는 Bearer의 `sub`를 검증 없이 사용한다.
-- 레퍼런스 시드 운영 도구, OTel 관측성, CI 게이트는 백로그(보드 참조).
+- 인증: dev 모드(`ALLOW_DEV_AUTH=true`)는 `X-User-Id` 를 검증 없이 신뢰 — **prod 금지**.
+  정식 인증은 `POST /v1/auth/signup|login` → Bearer JWT.
+- 알려진 P2: 클라이언트 제공 `session_id` 재사용 시 500(db_error) — 4xx 매핑 필요 (백로그).
+- OTel 관측성, CI 게이트, Golden 승인(실엔진 필요)은 백로그 (`.harness/plans/2026-07-30-p2-closeout.md`).
