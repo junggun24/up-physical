@@ -57,6 +57,18 @@ harness(fixtures): INV-7 위반(3d에서 z 누락) 재현 샘플 추가
 
 ## 강제 장치
 
-- `.githooks/commit-msg` — 형식 위반 시 커밋 거부 (정규식 + 빈 줄 검사).
+- `.githooks/commit-msg` — 형식 위반 시 커밋 거부 (정규식 + 빈 줄 검사, UTF-8 문자 기준 72자).
 - 로컬 활성화: `.harness/runners/setup.sh` (클론 후 1회 — `core.hooksPath` + 커밋 템플릿 등록).
 - `check.sh` 는 훅 미설정 시 경고를 띄운다 (게이트 실패는 아님).
+
+## 커밋 → Notion 자동 동기화
+
+모든 커밋은 Notion(환류 로그 등)에 반영된다. 2중 구조:
+
+1. `.githooks/post-commit` — 커밋을 큐(`.harness/tmp/notion-sync-pending.log`)에 기록.
+   Claude 밖에서 한 커밋도 큐에 쌓인다.
+2. `.claude/settings.json` PostToolUse 훅 → `.harness/runners/notion-sync-reminder.sh` —
+   `git commit` 실행 감지 + 큐 비어있지 않으면 에이전트에게 동기화 지시 주입.
+   에이전트는 환류 로그(+영향 페이지)를 갱신하고 **큐를 비운다**.
+
+큐가 남아 있으면 다음 커밋 때 다시 지시가 뜬다 (유실 방지). 수동 처리: `docs-sync` 스킬.

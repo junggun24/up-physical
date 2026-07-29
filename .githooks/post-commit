@@ -1,0 +1,7 @@
+#!/bin/sh
+# post-commit 훅 — 커밋을 Notion 동기화 대기 큐에 기록.
+# 큐는 Claude Code PostToolUse 훅(.harness/runners/notion-sync-reminder.sh)이 읽어
+# Notion(환류 로그 등) 반영 후 비운다. Claude 밖에서 한 커밋도 여기 쌓여 다음에 동기화된다.
+root="$(git rev-parse --show-toplevel)"
+mkdir -p "$root/.harness/tmp"
+git log -1 --format='%h %s' >> "$root/.harness/tmp/notion-sync-pending.log"
