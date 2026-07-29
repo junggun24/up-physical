@@ -41,12 +41,15 @@ up-supervisor (분배·증거 검수)
 ├─ skills/                    # (저장소 로컬 절차 메모 — 실행 스킬은 .claude/skills/)
 ├─ fixtures/                  # 최소 입력(골격 스트림 샘플, 결정적 생성)
 ├─ golden/                    # 승인된 기준 출력
+├─ plans/                     # 구현 계획 문서 (write-plan 산출물, 명시적 승인 대상)
+├─ solutions/                 # 해결책 라이브러리 (검색 가능한 조직 지식 — 복리의 핵심)
 ├─ runners/                   # check/validate/smoke CLI 래퍼
 └─ e2e/                       # 배포후 E2E + Notion 리포터 (예정)
 
 .claude/
 ├─ agents/                    # 직무 에이전트 6종 (supervisor/planner/designer/developer/qa/security)
-└─ skills/                    # 실행 절차 4종 (plan-ticket/qa-verify/security-review/harness-feedback)
+└─ skills/                    # 실행 절차 7종 (plan-ticket/write-plan/qa-verify/security-review/
+                              #   debug-systematic/harness-feedback/retro)
 ```
 
 ## 검증 루프 (Harness의 심장)
@@ -57,6 +60,12 @@ Fixture → 실행 → Invariant/Golden 검증 → 수정 → 재검증 → 완�
 
 `컴파일 성공 ≠ 기능 완료`. 완료 조건이 있어야 Agent가 끝까지 루프를 돈다.
 현 상태의 최소 루프: `runners/check.sh` (build+vet+test+fixture 검증).
+
+## 방법론 (복리 엔지니어링)
+
+모든 작업은 `Plan(40%) → Work(10%) → Review(40%) → Compound(10%)` 루프.
+50%는 기능, 50%는 시스템 개선. TDD·체계적 디버깅·승인 전 3질문.
+상세: `wiki/methodology.md` (superpowers · Compound Engineering · gstack에서 선별 적용).
 
 ## Notion 허브
 

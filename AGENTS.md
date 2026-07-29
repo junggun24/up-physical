@@ -40,6 +40,10 @@ internal/auth/        JWT 발급·검증, 비밀번호 해시
 - **엔진 경계.** 분석 로직은 `internal/analysis` 뒤의 Python 엔진에만 둔다. 워커/Go 코드에
   점수 계산 로직을 복제하지 않는다.
 - **컴파일 성공 ≠ 기능 완료.** 완료는 §5 의 검증 게이트를 통과해야 한다.
+- **복리 원칙.** 각 작업은 다음 작업을 쉽게 만들어야 한다: 시간의 50%는 시스템(하네스) 개선에,
+  모든 작업은 `Plan → Work → Review → Compound` 루프로 (`.harness/wiki/methodology.md`).
+- **TDD.** 새 동작·버그픽스는 실패하는 테스트/fixture 먼저. 버그는 `debug-systematic` 스킬로
+  (추측 수정 금지). 비자명한 해결책은 `.harness/solutions/` 에 기록한다.
 
 ## 3-1. 커밋 규칙 (강제됨)
 
@@ -72,12 +76,12 @@ PR 머지 조건:
 | 직무 | 에이전트 (`.claude/agents/`) | 스킬 (`.claude/skills/`) | 지식 (`.harness/wiki/`) |
 | --- | --- | --- | --- |
 | 총괄 | `up-supervisor` (분배·증거 검수) | — | 전체 |
-| 기획 | `up-planner` | `plan-ticket` | `planning.md` |
-| 디자인 | `up-designer` | (Figma MCP 스킬 활용) | `design.md` |
-| 개발 | `up-developer` | — (runners/check.sh 게이트) | `system-map.md`, `runtime.md` |
-| QA | `up-qa` | `qa-verify` | `verification.md` |
-| 보안 | `up-security` | `security-review` | `security.md` |
-| 환류 | 전원 | `harness-feedback` | (모든 wiki 갱신) |
+| 기획 | `up-planner` | `plan-ticket`, `write-plan` | `planning.md`, `methodology.md` |
+| 디자인 | `up-designer` | (Figma MCP + 시안 샷건) | `design.md` |
+| 개발 | `up-developer` | `write-plan`, `debug-systematic` | `system-map.md`, `runtime.md` |
+| QA | `up-qa` | `qa-verify` (P1/P2/P3) | `verification.md` |
+| 보안 | `up-security` | `security-review` (OWASP·STRIDE) | `security.md` |
+| 환류 | 전원 | `harness-feedback`, `retro` | solutions/ · plans/ · 모든 wiki |
 
 여러 직무에 걸친 작업은 `up-supervisor` 로 시작한다. 모든 작업의 마지막 단계는
 `harness-feedback` (환류 없이 Done 없음).

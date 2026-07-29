@@ -15,6 +15,8 @@ description: 작업 완료 후 환류(IMPROVEMENT LOOP) 절차. 티켓/PR을 닫
 | "왜 이렇게 했지"를 나중에 물을 결정이 있었나? | wiki 해당 문서의 결정 로그 (Intent, 날짜 포함) |
 | 다음에 또 할 절차를 새로 알아냈나? | `.claude/skills/<이름>/SKILL.md` 신설 또는 기존 스킬 보강 |
 | 새 버그/엣지케이스를 찾았나? | `.harness/fixtures/` 재현 샘플 + 회귀 테스트 |
+| **비자명한 문제를 해결했나?** | `.harness/solutions/` 1파일 (증상 원문 포함 — 미래 grep 대상) |
+| 계획과 실제가 어긋났나? | `.harness/plans/` 해당 계획에 차이 기록 |
 | 승인할 만한 기준 출력이 나왔나? | `.harness/golden/` (사람 승인 후) |
 | 상시 정책이 바뀌었나? | 루트 `AGENTS.md` (짧게 유지 — 정말 상시인 것만) |
 
