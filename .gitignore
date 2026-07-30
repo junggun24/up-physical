@@ -24,3 +24,7 @@ app/.gradle/
 app/**/build/
 app/local.properties
 .kotlin/
+
+# IDE (개인 환경 — 공유하지 않는다)
+.idea/
+*.iml
