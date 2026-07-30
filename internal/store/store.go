@@ -429,11 +429,55 @@ func (r rawJSON) MarshalJSON() ([]byte, error) {
 	return r, nil
 }
 
+// ReferenceMeta — 레퍼런스의 출처·권리·분류. 권리 근거 없는 레퍼런스는 등록할 수 없다.
+//
+// 레퍼런스는 타인의 자세를 제품의 기준으로 쓰는 자산이므로, "이 데이터를 쓸 근거가 무엇인가"에
+// 항상 답할 수 있어야 한다(투자·심사·제휴 협상에서 반드시 요구된다).
+type ReferenceMeta struct {
+	SourceKind   string // 필수: self_recorded | permission | cc_licensed | synthetic
+	RightsBasis  string // 필수: 허락 증빙 링크 · 라이선스 URL · 촬영 메모
+	ProviderName string // 제공자(코치·채널명) — 크레딧 표기용
+	Attribution  string // 표기 의무 문구 (CC-BY 등)
+	Handedness   string // right | left (빈 값 허용)
+	SkillLevel   string
+	CameraAngle  string
+	Notes        string
+}
+
+var validSourceKinds = map[string]bool{
+	"self_recorded": true, "permission": true, "cc_licensed": true, "synthetic": true,
+}
+
+// Validate — DB에 닿기 전에 거부한다(에러 메시지를 사람이 읽을 수 있게).
+func (m ReferenceMeta) Validate() error {
+	if !validSourceKinds[m.SourceKind] {
+		return fmt.Errorf("source_kind 가 올바르지 않음: %q (self_recorded|permission|cc_licensed|synthetic)", m.SourceKind)
+	}
+	if strings.TrimSpace(m.RightsBasis) == "" {
+		return errors.New("권리 근거(rights_basis) 필수 — 허락 증빙·라이선스·촬영 메모 중 하나를 남겨야 등록된다")
+	}
+	if m.Handedness != "" && m.Handedness != "right" && m.Handedness != "left" {
+		return fmt.Errorf("handedness 는 right|left 만 허용: %q", m.Handedness)
+	}
+	return nil
+}
+
+// nullIfEmpty — 빈 문자열을 SQL NULL 로 (선택 필드).
+func nullIfEmpty(v string) *string {
+	if strings.TrimSpace(v) == "" {
+		return nil
+	}
+	return &v
+}
+
 // RegisterReference — "정답 예시" 레퍼런스를 카탈로그(reference_actions)+reference_streams 에 등록하고
 // 해당 동작의 활성 레퍼런스로 만든다(기존 활성은 해제). 원본 JSON은 호출 전 오브젝트 스토리지에 저장.
-// 멱등: 같은 (action, version) 재실행 시 활성/위치만 갱신. 참조구현 references.register_reference 의 운영 버전.
+// 멱등: 같은 (action, version) 재실행 시 활성/위치/메타데이터를 갱신.
 func (s *Store) RegisterReference(ctx context.Context, sport, action string, version int,
-	st *contract.Stream, bucket, key string) (string, error) {
+	st *contract.Stream, bucket, key string, meta ReferenceMeta) (string, error) {
+	if err := meta.Validate(); err != nil {
+		return "", err
+	}
 	cp := st.Capture
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
@@ -464,13 +508,21 @@ func (s *Store) RegisterReference(ctx context.Context, sport, action string, ver
 	var refID string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO reference_streams
-		(id,action_id,version,is_active,bucket,object_key,schema_version,model,model_variant,coordinate_space,dimensions)
-		VALUES($1::uuid,$2::uuid,$3,true,$4,$5,$6,$7,$8,$9,$10)
+		(id,action_id,version,is_active,bucket,object_key,schema_version,model,model_variant,coordinate_space,dimensions,
+		 source_kind,rights_basis,provider_name,attribution,handedness,skill_level,camera_angle,notes)
+		VALUES($1::uuid,$2::uuid,$3,true,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
 		ON CONFLICT (action_id, version) DO UPDATE
-		SET is_active=true, bucket=EXCLUDED.bucket, object_key=EXCLUDED.object_key
+		SET is_active=true, bucket=EXCLUDED.bucket, object_key=EXCLUDED.object_key,
+		    source_kind=EXCLUDED.source_kind, rights_basis=EXCLUDED.rights_basis,
+		    provider_name=EXCLUDED.provider_name, attribution=EXCLUDED.attribution,
+		    handedness=EXCLUDED.handedness, skill_level=EXCLUDED.skill_level,
+		    camera_angle=EXCLUDED.camera_angle, notes=EXCLUDED.notes
 		RETURNING id::text`,
 		uuid.NewString(), actionID, version, bucket, key, st.SchemaVersion,
-		cp.Model, cp.ModelVariant, cp.CoordinateSpace, cp.Dimensions).Scan(&refID)
+		cp.Model, cp.ModelVariant, cp.CoordinateSpace, cp.Dimensions,
+		meta.SourceKind, meta.RightsBasis, nullIfEmpty(meta.ProviderName), nullIfEmpty(meta.Attribution),
+		nullIfEmpty(meta.Handedness), nullIfEmpty(meta.SkillLevel), nullIfEmpty(meta.CameraAngle),
+		nullIfEmpty(meta.Notes)).Scan(&refID)
 	if err != nil {
 		return "", err
 	}

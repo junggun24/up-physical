@@ -25,10 +25,25 @@ engine/                dev_engine_server.py (개발 스텁)
 .harness/runners/setup.sh                 # 커밋 훅 + 템플릿
 cd deploy && docker compose up -d --wait  # Postgres(5433) + MinIO(9000/9001)
 cp .env.example .env && cd ..
-psql "postgres://upx:upx@localhost:5433/upphysical" -f db/migrations/0001_init.up.sql
+# 마이그레이션은 번호 순으로 전부 적용한다 (*.up.sql)
+for f in db/migrations/*.up.sql; do
+  psql "postgres://upx:upx@localhost:5433/upphysical" -v ON_ERROR_STOP=1 -f "$f"
+done
+
 set -a; source deploy/.env; set +a
+# 레퍼런스 등록에는 출처·권리 근거가 필수다 (근거 없으면 등록 거부)
 go run ./cmd/seed -sport tennis -action forehand -version 1 \
-  -file .harness/fixtures/reference-forehand-2d.json
+  -file .harness/fixtures/reference-forehand-2d.json \
+  -source-kind synthetic -rights "개발 스텁(합성) — 저작물 아님" -handedness right -angle side
+```
+
+실제 코치 레퍼런스를 등록할 때는 근거를 그대로 남긴다:
+
+```bash
+go run ./cmd/seed -sport tennis -action forehand -version 2 -file <stream.json> \
+  -source-kind permission -provider "<채널·코치명>" \
+  -rights "DM 허락 2026-07-30, 상업적 이용 동의 (캡처: <링크>)" \
+  -attribution "레퍼런스 제공: <코치명>" -handedness right -angle side
 ```
 
 ## 실행

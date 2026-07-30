@@ -26,11 +26,36 @@ func main() {
 	action := flag.String("action", "forehand", "동작")
 	version := flag.Int("version", 1, "레퍼런스 버전")
 	file := flag.String("file", "", "레퍼런스 골격 스트림 JSON 경로 (필수)")
+
+	// 출처·권리 (권리 근거는 필수 — 근거 없는 레퍼런스는 등록되지 않는다)
+	sourceKind := flag.String("source-kind", "", "취득 경로 (필수): self_recorded|permission|cc_licensed|synthetic")
+	rights := flag.String("rights", "", "권리 근거 (필수): 허락 증빙 링크·라이선스 URL·촬영 메모")
+	provider := flag.String("provider", "", "제공자(코치·채널명) — 앱 크레딧 표기용")
+	attribution := flag.String("attribution", "", "표기 의무 문구 (CC-BY 등)")
+	handedness := flag.String("handedness", "", "right|left")
+	level := flag.String("level", "", "coach|advanced|intermediate 등")
+	angle := flag.String("angle", "", "side|front|diagonal")
+	notes := flag.String("notes", "", "비고")
 	flag.Parse()
 
 	if *file == "" {
 		log.Fatal("-file 필수")
 	}
+	meta := store.ReferenceMeta{
+		SourceKind:   *sourceKind,
+		RightsBasis:  *rights,
+		ProviderName: *provider,
+		Attribution:  *attribution,
+		Handedness:   *handedness,
+		SkillLevel:   *level,
+		CameraAngle:  *angle,
+		Notes:        *notes,
+	}
+	// 스토리지에 올리기 전에 거부한다 (부작용 없이 실패).
+	if err := meta.Validate(); err != nil {
+		log.Fatalf("레퍼런스 메타데이터 오류: %v", err)
+	}
+
 	ctx := context.Background()
 
 	raw, err := os.ReadFile(*file)
@@ -67,12 +92,17 @@ func main() {
 		log.Fatalf("스토리지 업로드 실패: %v", err)
 	}
 
-	refID, err := dataStore.RegisterReference(ctx, *sport, *action, *version, st, store.BucketReferences, key)
+	refID, err := dataStore.RegisterReference(ctx, *sport, *action, *version, st, store.BucketReferences, key, meta)
 	if err != nil {
 		log.Fatalf("등록 실패: %v", err)
 	}
 
 	fmt.Printf("OK 레퍼런스 등록됨: %s/%s v%d (id=%s, key=%s)\n", *sport, *action, *version, refID, key)
+	fmt.Printf("   출처=%s · 권리근거=%q", meta.SourceKind, meta.RightsBasis)
+	if meta.ProviderName != "" {
+		fmt.Printf(" · 제공자=%s", meta.ProviderName)
+	}
+	fmt.Println()
 }
 
 func mustEnv(k string) string {
