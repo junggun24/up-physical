@@ -60,10 +60,13 @@ go run ./cmd/worker   # ENGINE_SCRIPT=engine/dev_engine_server.py (.env 기본�
 ## 검증
 
 ```bash
-.harness/runners/check.sh      # 백엔드 게이트: build·vet·test·fixture
-.harness/runners/smoke.sh      # E2E: 업로드 → 잡 폴링 → 결과 (API·워커 기동 상태에서)
-.harness/runners/check-app.sh  # 앱 게이트: 코어 유닛테스트 + 앱→서버 계약 교차 검증
+.harness/runners/check.sh              # 머지 게이트: build·vet·test·fixture (인프라 불필요)
+.harness/runners/check-app.sh          # 앱 게이트: 코어 유닛테스트 + 앱→서버 계약 교차 검증
+.harness/runners/smoke.sh              # E2E: 업로드 → 잡 폴링 → 결과 (API·워커 기동 상태에서)
+.harness/runners/check-integration.sh  # 통합: 채점 경로·손잡이 정규화·멱등성 (스택 기동 필요)
 ```
+
+통합 테스트는 `UPX_INTEGRATION=1` 이 없으면 skip 되므로 `check.sh` 는 인프라 없이도 결정적이다.
 
 ## Android 앱 실행
 

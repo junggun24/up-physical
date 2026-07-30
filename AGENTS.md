@@ -58,8 +58,11 @@ internal/auth/        JWT 발급·검증, 비밀번호 해시
 
 | 명령 | 하는 일 |
 | --- | --- |
-| `.harness/runners/check.sh` | build → vet → test → fixture 검증 (머지 전 게이트) |
+| `.harness/runners/check.sh` | build → vet → test → fixture 검증 (머지 전 게이트, 인프라 불필요) |
+| `.harness/runners/check-integration.sh` | 기동된 스택 대상 통합 검증 (채점 경로·손잡이 정규화·멱등성) |
+| `.harness/runners/check-app.sh` | 앱 코어 유닛테스트 + 앱→서버 계약 교차 검증 |
 | `.harness/runners/validate-fixture.sh <file>` | 골격 스트림 fixture 를 계약(INV-1..8)으로 검증 |
+| `.harness/runners/extract-reference.sh <영상>` | 영상 → 랜드마크 → 스트림 → 계약 검증 (레퍼런스 후보) |
 | `.harness/runners/smoke.sh` | 기동된 API 대상 스모크(업로드→폴링→결과) |
 
 ## 5. 완료(Done)의 정의

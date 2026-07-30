@@ -13,7 +13,7 @@ Fixture → 실행 → Invariant / Golden 검증 → 수정 → 재검증 → �
 | 계층 | 무엇 | 언제 | 도구 |
 | --- | --- | --- | --- |
 | **Tier 1 · 코드 레벨** | 유닛/계약, 머지 게이트 | 구현 루프·PR | Fixture · Invariant · Golden · `go test` |
-| **Tier 2 · 시스템 레벨** | 실사용 회귀 안전망 | 배포 직후 | API/E2E 스모크 → Notion 리포트 (예정) |
+| **Tier 2 · 시스템 레벨** | 실사용 회귀 안전망 | 스택 기동 시·배포 직후 | `check-integration.sh` · `smoke.sh` → Notion 리포트(예정) |
 
 ## 현재 갖춰진 것 (Fact)
 
@@ -23,40 +23,34 @@ Fixture → 실행 → Invariant / Golden 검증 → 수정 → 재검증 → �
   - `check.sh` : `go build` + `go vet` + `go test` + fixture 검증 (머지 게이트)
   - `validate-fixture.sh <file>` : 단일 fixture 를 계약으로 검증
   - `smoke.sh` : 기동된 API 대상 업로드→폴링→결과 스모크
+  - `check-integration.sh` : 채점 경로·손잡이 정규화·멱등성 자동 검증 (Tier 2)
 
-## 채점 경로 회귀 검증 (수동 절차 — 자동화 전까지)
+## Tier 2 통합 검증 — `runners/check-integration.sh` (자동화됨)
 
-레퍼런스가 늘어도 채점이 흔들리지 않는지 확인한다. 워커 통합 테스트 하네스가 없어
-현재는 기동된 스택에서 수동으로 돈다 (2026-07-30 이 절차로 결함 수정을 확인했다):
+DB·스토리지·큐·엔진이 함께 있어야 드러나는 동작을 자동 검증한다.
+`check.sh`(머지 게이트)는 인프라 없이 결정적으로 돌아야 하므로 분리했다 —
+`UPX_INTEGRATION=1` 이 없으면 이 테스트들은 **skip** 된다.
 
-1. 활성 레퍼런스 v1 상태에서 fixture 업로드 → 점수 기록
-2. 일부러 **더 안 맞는** v2 를 시드 (활성이 v2 로 바뀜) → 같은 fixture 업로드
-3. 기대: 점수가 **v2 기준으로 낮아진다**. v1 점수가 유지되면 = 최고점 채택 결함 재발
-4. 기대: 워커 로그에 `ref <id>` 가 잡당 **하나만** 찍힌다 (엔진 호출 1회)
-5. 끝나면 v1 을 재시드해 활성 복원
+| 테스트 | 지키는 것 |
+| --- | --- |
+| `TestScoreFollowsActiveReference` | 활성 레퍼런스가 나빠지면 점수도 떨어진다 (비활성 레퍼런스가 채점에 섞이지 않는다) |
+| `TestHandednessNormalization` | 좌완 입력이 `handedness=left` 로 기준선 점수를 회복한다 |
+| `TestIdempotentUpload` | 같은 멱등키 재업로드가 새 잡을 만들지 않는다 |
 
-> 2026-07-30 실측: v1 활성 → 88.5 / v2(나쁜 매칭) 활성 → **26**. 결함이 있었다면 26이 아니라
-> 88.5가 유지됐을 것이다. 엔진 호출도 잡당 1회 확인.
+각 테스트는 **격리된 test/<uuid> 동작**에 레퍼런스를 시드하고 끝나면 지운다 —
+실제 `tennis/forehand` 레퍼런스를 건드리지 않는다.
 
-## 손잡이 정규화 회귀 검증 (수동 — 워커 통합 하네스 전까지)
-
-우완 레퍼런스 활성 상태에서 세 번 업로드해 점수를 비교한다:
-
-| 입력 | `analysis.handedness` | 기대 |
-| --- | --- | --- |
-| `valid-forehand-2d.json` | `right` | 기준선 점수 |
-| `valid-forehand-2d-lefty.json` | (없음) | **낮음** — 손잡이 차이가 점수에 섞인 상태 |
-| `valid-forehand-2d-lefty.json` | `left` | **기준선과 같음** — 정규화가 손잡이 차이를 제거 |
-
-> 2026-07-30 실측: 88.5 / 42.9 / 88.5. 워커 로그에 `손잡이 정규화 적용 (user=left, ref=right)` 1행.
+> **게이트가 실제로 실패하는지 확인함 (2026-07-30)**: 워커에 결함(모든 레퍼런스 중 최고점
+> 채택)을 일시 복원하자 `TestScoreFollowsActiveReference` 가 `88.5 → 88.5` 로 실패했다.
+> 수정본에서는 `88.5 → 42.9` 로 통과. 실패할 수 없는 테스트는 게이트가 아니다.
 
 ## 아직 없는 것 (백로그 = 다음 목표)
 
 - **Golden File** — 승인된 분석 결과(점수·타점·교정)의 기준 출력. `.harness/golden/`.
   엔진 결정성 확보 후 대표 fixture의 결과를 golden 으로 승인·고정한다.
 - 패키지별 `go test` 유닛 — 특히 `contract`(INV별 케이스)는 완료, 나머지 패키지 미착수.
-- **워커 통합 테스트 하네스** — DB·objstore·엔진을 띄운 상태의 자동 검증. 이게 없어서
-  위 "채점 경로 회귀 검증"이 수동 절차로 남아 있다. 우선순위 높음(결함 재발 감지 불가).
+- ~~워커 통합 테스트 하네스~~ ✅ 2026-07-30 완료 (`runners/check-integration.sh`).
+- CI 게이트 — check.sh 를 GitHub Actions 로. 통합 검증은 스택 기동이 필요해 별도 잡으로.
 - Tier 2 E2E + Notion 테스트 리포트 DB 연동.
 
 ## 완료(Done)의 정의
