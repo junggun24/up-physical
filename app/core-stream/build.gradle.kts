@@ -23,6 +23,16 @@ application {
     mainClass.set("com.upphysical.stream.GenerateSampleKt")
 }
 
+// pipeline/extract_pose.py 산출물(랜드마크) → 계약 준수 골격 스트림
+tasks.register<JavaExec>("buildStream") {
+    group = "application"
+    description = "랜드마크 JSON 을 골격 스트림으로 조립한다"
+    mainClass.set("com.upphysical.stream.BuildStreamKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    // 경로 인자를 리포 루트 기준으로 쓸 수 있게 고정 (기본값은 모듈 디렉토리라 혼란스럽다)
+    workingDir = rootProject.projectDir.parentFile
+}
+
 tasks.test {
     useJUnitPlatform()
 }
