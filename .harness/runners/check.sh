@@ -22,7 +22,10 @@ step "3/4 go test"
 go test ./...
 
 step "4/4 fixture 계약 검증 (INV-1..8)"
-go run ./cmd/validate .harness/fixtures/valid-forehand-2d.json
+go run ./cmd/validate \
+  .harness/fixtures/valid-forehand-2d.json \
+  .harness/fixtures/valid-forehand-2d-lefty.json \
+  .harness/fixtures/reference-forehand-2d.json
 go run ./cmd/validate -expect-invalid \
   .harness/fixtures/invalid-inv2-time.json \
   .harness/fixtures/invalid-inv4-topology.json

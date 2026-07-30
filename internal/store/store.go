@@ -48,9 +48,10 @@ type Job struct {
 }
 
 type Reference struct {
-	ID     string
-	Bucket string
-	Key    string
+	ID         string
+	Bucket     string
+	Key        string
+	Handedness string // "right" | "left" | "" (미지정)
 }
 
 type ReferenceCatalog struct {
@@ -151,7 +152,7 @@ func (s *Store) ResolveActiveReference(ctx context.Context, sport, action string
 // CreateSessionWithJob — 세션 + subjects(N) + 잡을 한 트랜잭션으로 기록. 반환: jobID.
 // 스트림 원본은 이미 오브젝트 스토리지에 저장된 뒤 호출(메타는 성공 후에만 커밋).
 func (s *Store) CreateSessionWithJob(ctx context.Context, st *contract.Stream, userID, referenceID,
-	idempotencyKey, streamBucket, streamKey string, streamBytes int) (string, error) {
+	idempotencyKey, streamBucket, streamKey string, streamBytes int, handedness string) (string, error) {
 
 	cp := st.Capture
 	topo := cp.KeypointTopology
@@ -173,11 +174,12 @@ func (s *Store) CreateSessionWithJob(ctx context.Context, st *contract.Stream, u
 		INSERT INTO sessions
 		(id,user_id,status,schema_version,source,model,model_variant,model_version,
 		 keypoint_topology,fps,variable_framerate,frame_count,duration_s,
-		 coordinate_space,dimensions,z_sign_convention,stream_bucket,stream_object_key,stream_bytes)
-		VALUES($1::uuid,$2::uuid,'queued',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+		 coordinate_space,dimensions,z_sign_convention,stream_bucket,stream_object_key,stream_bytes,handedness)
+		VALUES($1::uuid,$2::uuid,'queued',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
 		st.SessionID, userID, st.SchemaVersion, cp.Source, cp.Model, cp.ModelVariant, cp.ModelVersion,
 		topo, cp.FPS, cp.VariableFramerate, cp.FrameCount, cp.DurationS,
-		cp.CoordinateSpace, cp.Dimensions, zsign, streamBucket, streamKey, streamBytes)
+		cp.CoordinateSpace, cp.Dimensions, zsign, streamBucket, streamKey, streamBytes,
+		nullIfEmpty(handedness))
 	if err != nil {
 		return "", fmt.Errorf("세션 insert: %w", err)
 	}
@@ -318,11 +320,16 @@ func (s *Store) ListUserSessions(ctx context.Context, userID string) ([]SessionS
 	return out, rows.Err()
 }
 
-// GetSessionStreamLoc — 워커가 스트림 원본을 로드할 버킷/키.
-func (s *Store) GetSessionStreamLoc(ctx context.Context, sessionID string) (bucket, key string, err error) {
+// GetSessionStreamLoc — 워커가 스트림 원본을 로드할 버킷/키 + 손잡이(없으면 "").
+// 손잡이는 좌우 반전 정규화 판단에 쓴다 (internal/normalize).
+func (s *Store) GetSessionStreamLoc(ctx context.Context, sessionID string) (bucket, key, handedness string, err error) {
+	var h *string
 	err = s.Pool.QueryRow(ctx,
-		`SELECT stream_bucket, stream_object_key FROM sessions WHERE id=$1::uuid`, sessionID).
-		Scan(&bucket, &key)
+		`SELECT stream_bucket, stream_object_key, handedness FROM sessions WHERE id=$1::uuid`, sessionID).
+		Scan(&bucket, &key, &h)
+	if h != nil {
+		handedness = *h
+	}
 	return
 }
 
@@ -351,13 +358,18 @@ func (s *Store) ReferencesForAction(ctx context.Context, referenceID string) ([]
 	return out, rows.Err()
 }
 
-// GetReferenceByID — 워커가 레퍼런스 원본을 로드할 버킷/키.
+// GetReferenceByID — 워커가 레퍼런스 원본을 로드할 버킷/키 + 손잡이.
 func (s *Store) GetReferenceByID(ctx context.Context, id string) (*Reference, error) {
 	r := Reference{ID: id}
+	var h *string
 	err := s.Pool.QueryRow(ctx,
-		`SELECT bucket, object_key FROM reference_streams WHERE id=$1::uuid`, id).Scan(&r.Bucket, &r.Key)
+		`SELECT bucket, object_key, handedness FROM reference_streams WHERE id=$1::uuid`, id).
+		Scan(&r.Bucket, &r.Key, &h)
 	if err != nil {
 		return nil, err
+	}
+	if h != nil {
+		r.Handedness = *h
 	}
 	return &r, nil
 }

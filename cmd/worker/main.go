@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/upphysical/backend/internal/analysis"
+	"github.com/upphysical/backend/internal/contract"
+	"github.com/upphysical/backend/internal/normalize"
 	"github.com/upphysical/backend/internal/objstore"
 	"github.com/upphysical/backend/internal/queue"
 	"github.com/upphysical/backend/internal/store"
@@ -86,7 +88,7 @@ func process(ctx context.Context, st *store.Store, obj *objstore.Store,
 	}
 
 	// 1) 사용자 스트림 + 레퍼런스 로드
-	bucket, key, err := st.GetSessionStreamLoc(ctx, c.SessionID)
+	bucket, key, userHand, err := st.GetSessionStreamLoc(ctx, c.SessionID)
 	if err != nil {
 		return fail(err)
 	}
@@ -112,6 +114,18 @@ func process(ctx context.Context, st *store.Store, obj *objstore.Store,
 	refJSON, err := obj.GetBytes(ctx, ref.Bucket, ref.Key)
 	if err != nil {
 		return fail(err)
+	}
+
+	// 1-1) 손잡이 정규화 — 사용자와 레퍼런스의 손잡이가 다르면 좌우를 반전한다.
+	// 반전 없이 비교하면 점수가 "자세 차이"가 아니라 "손잡이 차이"를 반영한다.
+	// 저장된 원본은 건드리지 않고, 엔진에 넘길 바이트만 변환한다.
+	if userHand != "" && ref.Handedness != "" && userHand != ref.Handedness {
+		mirrored, mErr := mirrorStreamJSON(userJSON)
+		if mErr != nil {
+			return fail(fmt.Errorf("손잡이 정규화 실패: %w", mErr))
+		}
+		userJSON = mirrored
+		log.Printf("[job %s] 손잡이 정규화 적용 (user=%s, ref=%s)", short(c.JobID), userHand, ref.Handedness)
 	}
 
 	// 2) 분석 엔진 (상주 프로세스, ref 는 reference_id 로 캐시)
@@ -141,6 +155,15 @@ func process(ctx context.Context, st *store.Store, obj *objstore.Store,
 
 	// 4) 성공 마킹
 	return st.MarkJobSucceeded(ctx, c.JobID, c.SessionID)
+}
+
+// mirrorStreamJSON — 스트림 바이트를 좌우 반전한 바이트로 바꾼다(원본 바이트는 보존).
+func mirrorStreamJSON(raw []byte) ([]byte, error) {
+	st, err := contract.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(normalize.MirrorStream(st))
 }
 
 func jsonOrDefault(raw json.RawMessage, def string) []byte {

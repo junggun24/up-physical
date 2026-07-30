@@ -123,6 +123,9 @@ type ingestRequest struct {
 		Sport            string `json:"sport"`
 		Action           string `json:"action"`
 		ReferenceVersion *int   `json:"reference_version"`
+		// Handedness — "right" | "left" (선택). 손잡이가 레퍼런스와 다르면 워커가
+		// 좌우 반전으로 정규화한다. 없으면 정규화를 건너뛴다.
+		Handedness string `json:"handedness"`
 	} `json:"analysis"`
 }
 
@@ -156,6 +159,10 @@ func (s *server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Analysis.Sport == "" || req.Analysis.Action == "" {
 		writeProblem(w, http.StatusBadRequest, "bad_request", "analysis.sport, analysis.action 필수")
+		return
+	}
+	if h := req.Analysis.Handedness; h != "" && h != "right" && h != "left" {
+		writeProblem(w, http.StatusBadRequest, "bad_request", "analysis.handedness 는 right|left 만 허용")
 		return
 	}
 
@@ -203,7 +210,7 @@ func (s *server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 
 	// 6) 세션/subjects/잡 기록(트랜잭션)
 	jobID, err := s.st.CreateSessionWithJob(ctx, st, userID, ref.ID, idemKey,
-		store.BucketStreams, key, meta.Bytes)
+		store.BucketStreams, key, meta.Bytes, req.Analysis.Handedness)
 	if err != nil {
 		writeProblem(w, http.StatusInternalServerError, "db_error", err.Error())
 		return
