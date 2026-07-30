@@ -18,3 +18,9 @@ deploy/.env
 # Harness working outputs (generated during verification runs)
 .harness/tmp/
 .harness/e2e/results/
+
+# Android/Gradle (app/)
+app/.gradle/
+app/**/build/
+app/local.properties
+.kotlin/

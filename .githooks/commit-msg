@@ -23,7 +23,7 @@ fail() {
 }
 
 # UTF-8 로케일 확보 — C 로케일에선 한글이 바이트(×3)로 세어져 72자 제한을 오판한다
-for loc in en_US.UTF-8 C.UTF-8 ko_KR.UTF-8; do
+for loc in en_US.UTF-8 C.UTF-8 ko_KR.UTF-8 C.utf8 en_US.utf8 ko_KR.utf8; do
   if locale -a 2>/dev/null | grep -qx "$loc"; then LC_ALL="$loc"; export LC_ALL; break; fi
 done
 
