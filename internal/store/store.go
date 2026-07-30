@@ -327,7 +327,10 @@ func (s *Store) GetSessionStreamLoc(ctx context.Context, sessionID string) (buck
 }
 
 // ReferencesForAction — 주어진 reference_id 와 같은 동작(action)의 모든 레퍼런스.
-// 다중 레퍼런스 비교용. 시드된 게 1개면 1개 반환(기존 동작과 동일).
+//
+// **채점 경로에서는 쓰지 않는다.** 채점은 잡에 고정된 대표 레퍼런스 1개로만 한다
+// (여러 개 중 최고점을 택하면 점수 인플레이션 + 지연 N배 — cmd/worker 주석 참조).
+// 이 메서드는 오버레이 비교·레퍼런스 매칭 같은 별도 기능에서 쓴다.
 func (s *Store) ReferencesForAction(ctx context.Context, referenceID string) ([]Reference, error) {
 	rows, err := s.Pool.Query(ctx, `
 		SELECT id::text, bucket, object_key FROM reference_streams

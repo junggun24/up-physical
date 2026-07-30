@@ -95,32 +95,32 @@ func process(ctx context.Context, st *store.Store, obj *objstore.Store,
 		return fail(err)
 	}
 
-	// 동작의 모든 레퍼런스(코치 스윙) 로드 — 여럿이면 best 점수를 택해 단일 레퍼런스 분산 완화.
-	refs, err := st.ReferencesForAction(ctx, c.ReferenceID)
-	if err != nil || len(refs) == 0 {
-		return fail(fmt.Errorf("레퍼런스 로드 실패: %v", err))
+	// 잡 생성 시 고정된 **대표 레퍼런스 1개**로만 채점한다.
+	//
+	// 과거엔 동작의 모든 레퍼런스를 돌려 최고점을 택했는데, 그러면 레퍼런스가 늘수록
+	// 모든 사용자의 점수가 단조 증가하고(max), 피드백이 "당신의 결함"이 아니라
+	// "당신과 가장 닮은 코치"가 되어 '고칠 단 하나'의 근거가 사라진다.
+	// 엔진 호출도 뮤텍스 직렬화라 레퍼런스 N개면 지연이 N배(p50 예산 초과).
+	// 다중 레퍼런스 비교는 채점이 아니라 별도 기능(오버레이·매칭)으로 다룬다.
+	if c.ReferenceID == "" {
+		return fail(fmt.Errorf("잡에 레퍼런스가 없음"))
+	}
+	ref, err := st.GetReferenceByID(ctx, c.ReferenceID)
+	if err != nil {
+		return fail(fmt.Errorf("레퍼런스 로드 실패: %w", err))
+	}
+	refJSON, err := obj.GetBytes(ctx, ref.Bucket, ref.Key)
+	if err != nil {
+		return fail(err)
 	}
 
 	// 2) 분석 엔진 (상주 프로세스, ref 는 reference_id 로 캐시)
 	tEng := time.Now()
-	var res *analysis.Result
-	for _, rf := range refs {
-		refJSON, e := obj.GetBytes(ctx, rf.Bucket, rf.Key)
-		if e != nil {
-			continue
-		}
-		r, e := engine.Analyze(ctx, userJSON, refJSON, rf.ID)
-		if e != nil {
-			continue
-		}
-		if res == nil || primaryScore(r) > primaryScore(res) {
-			res = r
-		}
+	res, err := engine.Analyze(ctx, userJSON, refJSON, ref.ID)
+	if err != nil {
+		return fail(err)
 	}
-	if res == nil {
-		return fail(fmt.Errorf("분석 결과 없음(레퍼런스 %d개)", len(refs)))
-	}
-	log.Printf("[job %s] 엔진 %dms (%d subjects, ref %d개)", short(c.JobID), time.Since(tEng).Milliseconds(), len(res.Results), len(refs))
+	log.Printf("[job %s] 엔진 %dms (%d subjects, ref %s)", short(c.JobID), time.Since(tEng).Milliseconds(), len(res.Results), short(ref.ID))
 
 	// 3) subject_key → subjects.id 매핑 후 결과 저장(멱등)
 	smap, err := st.SubjectsMap(ctx, c.SessionID)
@@ -141,14 +141,6 @@ func process(ctx context.Context, st *store.Store, obj *objstore.Store,
 
 	// 4) 성공 마킹
 	return st.MarkJobSucceeded(ctx, c.JobID, c.SessionID)
-}
-
-// primaryScore — 주 피사체(첫 결과)의 종합 점수. 다중 레퍼런스 중 best 선택 기준.
-func primaryScore(r *analysis.Result) float64 {
-	if r == nil || len(r.Results) == 0 {
-		return -1
-	}
-	return r.Results[0].OverallScore
 }
 
 func jsonOrDefault(raw json.RawMessage, def string) []byte {
