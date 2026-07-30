@@ -45,9 +45,30 @@ go run ./cmd/worker   # ENGINE_SCRIPT=engine/dev_engine_server.py (.env 기본�
 ## 검증
 
 ```bash
-.harness/runners/check.sh    # 머지 게이트: build·vet·test·fixture
-.harness/runners/smoke.sh    # E2E: 업로드 → 잡 폴링 → 결과 (API·워커 기동 상태에서)
+.harness/runners/check.sh      # 백엔드 게이트: build·vet·test·fixture
+.harness/runners/smoke.sh      # E2E: 업로드 → 잡 폴링 → 결과 (API·워커 기동 상태에서)
+.harness/runners/check-app.sh  # 앱 게이트: 코어 유닛테스트 + 앱→서버 계약 교차 검증
 ```
+
+## Android 앱 실행
+
+전제: Android Studio + SDK(API 36) + AVD. 이 머신엔 AVD `upx-test`(Pixel 7, Android 16) 준비됨.
+백엔드가 먼저 떠 있어야 한다 (앱은 에뮬레이터에서 호스트를 `10.0.2.2:8080` 으로 본다).
+
+```bash
+# 1) 에뮬레이터
+~/Library/Android/sdk/emulator/emulator -avd upx-test &
+
+# 2) 빌드 + 설치 + 실행
+cd app && ./gradlew :app:assembleDebug && cd ..
+~/Library/Android/sdk/platform-tools/adb install -r app/app/build/outputs/apk/debug/app-debug.apk
+~/Library/Android/sdk/platform-tools/adb shell am start -n com.upphysical.app/.MainActivity
+```
+
+- 실기기(갤럭시)로 실행하려면 `app/app/build.gradle.kts` 의 `API_BASE_URL` 을 맥의 LAN IP로
+  바꾸고(같은 와이파이), USB 디버깅을 켠 뒤 같은 adb 명령을 쓴다.
+- 툴체인 제약: **Gradle 9.5.1 + AGP 8.13**(Gradle 9.6+ 는 AGP 8.x 와 비호환), JDK는
+  Android Studio 번들 JBR 21 고정(`app/gradle.properties`).
 
 ## 참고 / 한계
 

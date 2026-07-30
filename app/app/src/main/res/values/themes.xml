@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Compose 가 화면을 전부 그리므로 플랫폼 테마 최소본만 둔다
+     (Material Components 라이브러리 의존 없음). 액션바는 Compose 와 중복이라 끈다. -->
+<resources>
+    <style name="Theme.UpPhysical" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
